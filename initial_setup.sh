@@ -51,8 +51,8 @@ chown -R postgres:postgres $PG_DATA_DIR
 rm -rf $EBS_MOUNT/postgresql
 mkdir -p $EBS_MOUNT/postgresql
 cd ${PG_DATA_DIR}/${PG_MAJOR}/main/
-#mv base $EBS_MOUNT/postgresql/base
-#ln -s $EBS_MOUNT/postgresql/base base
+mv base $EBS_MOUNT/postgresql/base
+ln -s $EBS_MOUNT/postgresql/base base
 mv global $EBS_MOUNT/postgresql/global
 ln -s $EBS_MOUNT/postgresql/global global
 /etc/init.d/postgresql start
