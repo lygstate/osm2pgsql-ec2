@@ -19,6 +19,7 @@ apt-get --yes --force-yes install make cmake g++ libboost-dev libboost-system-de
 EBS_MOUNT="/mnt/g/work"
 PG_MAJOR="9.5"
 PG_DATA_DIR="/var/data/postgresql"
+PG_CONFIG_FILE=/etc/postgresql/$PG_MAJOR/main/postgresql.conf
 PGDATABASE="osm"
 PGUSER="osm"
 PGPASSWORD="osmpassword"
@@ -40,12 +41,20 @@ apt-get --yes --force-yes install unzip \
   libmapnik-dev mapnik-utils python-mapnik \
   osmosis
 
+sedeasy() {
+  echo $1
+  sed -i "s/${1}/$(echo $2 | sed -e 's/[\/&]/\\&/g')/g" $3
+}
+
 # Move the postgresql data to the EBS volume
 mkdir -p $PG_DATA_DIR
 /etc/init.d/postgresql stop
+
+# Update the postgresql config file
+sedeasy "^#\?data_directory = .*$" "data_directory = '${PG_DATA_DIR}/${PG_MAJOR}/main'" $PG_CONFIG_FILE
+sh -v config_postgresql.sh $PG_CONFIG_FILE
+
 rm -rf ${PG_DATA_DIR}/${PG_MAJOR}
-sed -i "s/^data_directory = .*$/# data_directory = /" /etc/postgresql/$PG_MAJOR/main/postgresql.conf
-echo "data_directory = '${PG_DATA_DIR}/${PG_MAJOR}/main'" >> /etc/postgresql/$PG_MAJOR/main/postgresql.conf
 cp -a /var/lib/postgresql/$PG_MAJOR $PG_DATA_DIR
 chown -R postgres:postgres $PG_DATA_DIR
 rm -rf $EBS_MOUNT/postgresql
