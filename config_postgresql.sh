@@ -12,3 +12,4 @@ sed -i "s/^#\?maintenance_work_mem = .*$/maintenance_work_mem = 1GB/" $POST_CONF
 sed -i "s/^#\?temp_buffers = .*$/temp_buffers = 512MB/" $POST_CONFIG_PATH
 sed -i "s/^#\?autovacuum_work_mem = .*$/autovacuum_work_mem = -1/" $POST_CONFIG_PATH
 sed -i "s/^#\?effective_io_concurrency = .*$/effective_io_concurrency = 100/" $POST_CONFIG_PATH
+sed -i "s/^#\?max_connections = .*$/max_connections = 32767/" $POST_CONFIG_PATH
