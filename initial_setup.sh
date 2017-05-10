@@ -65,6 +65,7 @@ sudo -u postgres psql -d $PGDATABASE -c 'CREATE EXTENSION postgis; CREATE EXTENS
 # Download the planet
 tsocks wget --quiet --directory-prefix $EBS_MOUNT/data --timestamping http://s3.amazonaws.com/mapzen-tiles-assets/20161110/shapefiles.tar.gz
 tsocks wget --quiet --directory-prefix $EBS_MOUNT/data --timestamping https://s3.amazonaws.com/mapzen-tiles-assets/wof/dev/wof_neighbourhoods.pgdump
+tsocks wget --quiet --directory-prefix $EBS_MOUNT/data --timestamping https://s3.amazonaws.com/metro-extracts.mapzen.com/new-york_new-york.osm.pbf
 wget --quiet --directory-prefix $EBS_MOUNT/data --timestamping http://planet.openstreetmap.org/pbf/planet-latest.osm.pbf
 
 # Building osm2pgsql
@@ -91,7 +92,7 @@ osm2pgsql --create --slim --cache $OSM2PGSQL_CACHE --hstore-all \
   --style $EBS_MOUNT/vector-datasource/osm2pgsql.style \
   --flat-nodes /var/data/flatnodes \
   -d ${PGDATABASE} \
-  $EBS_MOUNT/data/planet-latest.osm.pbf
+  $EBS_MOUNT/data/new-york_new-york.osm.pbf
 
 # Download and import supporting data
 cd $SOURCE_DIR
