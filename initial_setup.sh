@@ -117,7 +117,7 @@ import_osm() {
 
 import_shp() {
   # Download and import supporting data
-  cd data
+  cd $SOURCE_DIR/data
   python bootstrap.py
   cp $EBS_MOUNT/data/shapefiles.tar.gz $SOURCE_DIR/data/
   make -f Makefile-import-data
@@ -126,7 +126,6 @@ import_shp() {
   make -f Makefile-import-data clean
 }
 
-cd $SOURCE_DIR
 SOURCE_VENV="${SOURCE_DIR}/venv"
 tsocks virtualenv $SOURCE_VENV
 . "${SOURCE_VENV}/bin/activate"
