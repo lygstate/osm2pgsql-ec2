@@ -75,6 +75,9 @@ import_osm() {
   ln -s $EBS_MOUNT/postgresql/base base
   mv global $EBS_MOUNT/postgresql/global
   ln -s $EBS_MOUNT/postgresql/global global
+  rm -rf /var/run/postgresql/
+  mkdir -p /var/run/postgresql/
+  chown -R postgres:postgres /var/run/postgresql/
   /etc/init.d/postgresql start
 
   # Create database and user
