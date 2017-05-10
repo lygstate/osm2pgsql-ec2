@@ -129,7 +129,7 @@ import_shp() {
 cd $SOURCE_DIR
 SOURCE_VENV="${SOURCE_DIR}/venv"
 tsocks virtualenv $SOURCE_VENV
-source "${SOURCE_VENV}/bin/activate"
+. "${SOURCE_VENV}/bin/activate"
 tsocks pip -q install -U jinja2 pyaml
 
 import_osm
