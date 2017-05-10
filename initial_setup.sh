@@ -107,9 +107,9 @@ osm2pgsql --create --slim --cache $OSM2PGSQL_CACHE --hstore-all \
 # Download and import supporting data
 cd $SOURCE_DIR
 SOURCE_VENV="${SOURCE_DIR}/venv"
-virtualenv $SOURCE_VENV
+tsocks virtualenv $SOURCE_VENV
 source "${SOURCE_VENV}/bin/activate"
-pip -q install -U jinja2 pyaml
+tsocks pip -q install -U jinja2 pyaml
 cd data
 python bootstrap.py
 cp $EBS_MOUNT/data/shapefiles.tar.gz $SOURCE_DIR/data/
