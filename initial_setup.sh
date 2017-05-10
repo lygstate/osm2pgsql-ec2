@@ -110,11 +110,6 @@ import_osm() {
 
 import_shp() {
   # Download and import supporting data
-  cd $SOURCE_DIR
-  SOURCE_VENV="${SOURCE_DIR}/venv"
-  tsocks virtualenv $SOURCE_VENV
-  source "${SOURCE_VENV}/bin/activate"
-  tsocks pip -q install -U jinja2 pyaml
   cd data
   python bootstrap.py
   cp $EBS_MOUNT/data/shapefiles.tar.gz $SOURCE_DIR/data/
@@ -122,11 +117,18 @@ import_shp() {
   ./import-shapefiles.sh | psql -d $PGDATABASE -U $PGUSER -h localhost
   ./perform-sql-updates.sh -d $PGDATABASE -U $PGUSER -h localhost
   make -f Makefile-import-data clean
-  deactivate
 }
+
+cd $SOURCE_DIR
+SOURCE_VENV="${SOURCE_DIR}/venv"
+tsocks virtualenv $SOURCE_VENV
+source "${SOURCE_VENV}/bin/activate"
+tsocks pip -q install -U jinja2 pyaml
 
 import_osm
 import_shp
+
+deactivate
 
 # Downloading Who's on First neighbourhoods data
 pg_restore --clean -d $PGDATABASE -U $PGUSER -h localhost -O "${EBS_MOUNT}/data/wof_neighbourhoods.pgdump"
