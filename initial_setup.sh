@@ -48,6 +48,7 @@ sedeasy() {
 
 # Move the postgresql data to the EBS volume
 mkdir -p $PG_DATA_DIR
+sedeasy "^#\?data_directory = .*$" "data_directory = '/var/lib/postgresql/$PG_MAJOR/main'" $PG_CONFIG_FILE
 /etc/init.d/postgresql stop
 
 # Update the postgresql config file
