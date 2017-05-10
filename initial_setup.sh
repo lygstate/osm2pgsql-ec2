@@ -54,10 +54,11 @@ sedeasy() {
 }
 
 import_osm() {
-
   # Move the postgresql data to the EBS volume
   mkdir -p $PG_DATA_DIR
   sedeasy "^#\?data_directory = .*$" "data_directory = '/var/lib/postgresql/$PG_MAJOR/main'" $PG_CONFIG_FILE
+  rm -rf /var/run/postgresql/
+  mkdir -p /var/run/postgresql/
   /etc/init.d/postgresql stop
 
   # Update the postgresql config file
