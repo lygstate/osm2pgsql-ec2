@@ -20,9 +20,14 @@ EBS_MOUNT="/mnt/g/work"
 PG_MAJOR="9.5"
 PG_DATA_DIR="/var/data/postgresql"
 PG_CONFIG_FILE=/etc/postgresql/$PG_MAJOR/main/postgresql.conf
+SOURCE_DIR="${EBS_MOUNT}/vector-datasource"
 PGDATABASE="osm"
 PGUSER="osm"
 PGPASSWORD="osmpassword"
+export EBS_MOUNT
+export PG_DATA_DIR
+export PG_CONFIG_FILE
+export SOURCE_DIR
 export PGDATABASE
 export PGUSER
 export PGPASSWORD
@@ -30,6 +35,8 @@ OSM2PGSQL_CACHE=$(free -m | grep -i 'mem:' | sed 's/[ \t]\+/ /g' | cut -f4,7 -d'
 OSM2PGSQL_CACHE=$(( $OSM2PGSQL_CACHE > 33000 ? 33000 : $OSM2PGSQL_CACHE ))
 OSM2PGSQL_PROCS=$(grep -c 'model name' /proc/cpuinfo)
 OSMOSIS_WORKDIR="${EBS_MOUNT}/osmosis"
+export OSM2PGSQL_CACHE
+export OSM2PGSQL_PROCS
 
 # install postgres / postgis
 apt-get --yes --force-yes install unzip \
@@ -93,7 +100,6 @@ import_osm() {
   make && make install
 
   # Import the planet
-  SOURCE_DIR="${EBS_MOUNT}/vector-datasource"
   if [ ! -d "$SOURCE_DIR" ] ; then
     git clone https://github.com/lygstate/vector-datasource.git $SOURCE_DIR
   fi
