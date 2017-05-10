@@ -46,78 +46,87 @@ sedeasy() {
   sed -i "s/${1}/$(echo $2 | sed -e 's/[\/&]/\\&/g')/g" $3
 }
 
-# Move the postgresql data to the EBS volume
-mkdir -p $PG_DATA_DIR
-sedeasy "^#\?data_directory = .*$" "data_directory = '/var/lib/postgresql/$PG_MAJOR/main'" $PG_CONFIG_FILE
-/etc/init.d/postgresql stop
+import_osm() {
 
-# Update the postgresql config file
-sedeasy "^#\?data_directory = .*$" "data_directory = '${PG_DATA_DIR}/${PG_MAJOR}/main'" $PG_CONFIG_FILE
-sh -v config_postgresql.sh $PG_CONFIG_FILE
+  # Move the postgresql data to the EBS volume
+  mkdir -p $PG_DATA_DIR
+  sedeasy "^#\?data_directory = .*$" "data_directory = '/var/lib/postgresql/$PG_MAJOR/main'" $PG_CONFIG_FILE
+  /etc/init.d/postgresql stop
 
-rm -rf ${PG_DATA_DIR}/${PG_MAJOR}
-cp -a /var/lib/postgresql/$PG_MAJOR $PG_DATA_DIR
-chown -R postgres:postgres $PG_DATA_DIR
-rm -rf $EBS_MOUNT/postgresql
-mkdir -p $EBS_MOUNT/postgresql
-cd ${PG_DATA_DIR}/${PG_MAJOR}/main/
-mv base $EBS_MOUNT/postgresql/base
-ln -s $EBS_MOUNT/postgresql/base base
-mv global $EBS_MOUNT/postgresql/global
-ln -s $EBS_MOUNT/postgresql/global global
-/etc/init.d/postgresql start
+  # Update the postgresql config file
+  sedeasy "^#\?data_directory = .*$" "data_directory = '${PG_DATA_DIR}/${PG_MAJOR}/main'" $PG_CONFIG_FILE
+  sh -v config_postgresql.sh $PG_CONFIG_FILE
 
-# Create database and user
-sudo -u postgres psql -c "CREATE ROLE ${PGUSER} WITH NOSUPERUSER LOGIN UNENCRYPTED PASSWORD '${PGPASSWORD}';"
-sudo -u postgres psql -c "CREATE DATABASE ${PGDATABASE} WITH OWNER ${PGUSER};"
-sudo -u postgres psql -d $PGDATABASE -c 'CREATE EXTENSION postgis; CREATE EXTENSION hstore;'
+  rm -rf ${PG_DATA_DIR}/${PG_MAJOR}
+  cp -a /var/lib/postgresql/$PG_MAJOR $PG_DATA_DIR
+  chown -R postgres:postgres $PG_DATA_DIR
+  rm -rf $EBS_MOUNT/postgresql
+  mkdir -p $EBS_MOUNT/postgresql
+  cd ${PG_DATA_DIR}/${PG_MAJOR}/main/
+  mv base $EBS_MOUNT/postgresql/base
+  ln -s $EBS_MOUNT/postgresql/base base
+  mv global $EBS_MOUNT/postgresql/global
+  ln -s $EBS_MOUNT/postgresql/global global
+  /etc/init.d/postgresql start
 
-# Download the planet
-tsocks wget --quiet --directory-prefix $EBS_MOUNT/data --timestamping http://s3.amazonaws.com/mapzen-tiles-assets/20161110/shapefiles.tar.gz
-tsocks wget --quiet --directory-prefix $EBS_MOUNT/data --timestamping https://s3.amazonaws.com/mapzen-tiles-assets/wof/dev/wof_neighbourhoods.pgdump
-tsocks wget --quiet --directory-prefix $EBS_MOUNT/data --timestamping https://s3.amazonaws.com/metro-extracts.mapzen.com/new-york_new-york.osm.pbf
-wget --quiet --directory-prefix $EBS_MOUNT/data --timestamping http://planet.openstreetmap.org/pbf/planet-latest.osm.pbf
+  # Create database and user
+  sudo -u postgres psql -c "CREATE ROLE ${PGUSER} WITH NOSUPERUSER LOGIN UNENCRYPTED PASSWORD '${PGPASSWORD}';"
+  sudo -u postgres psql -c "CREATE DATABASE ${PGDATABASE} WITH OWNER ${PGUSER};"
+  sudo -u postgres psql -d $PGDATABASE -c 'CREATE EXTENSION postgis; CREATE EXTENSION hstore;'
 
-# Building osm2pgsql
-OSM2PGSQL_SOURCE_DIR="${EBS_MOUNT}/osm2pgsql"
-if [ ! -d "$OSM2PGSQL_SOURCE_DIR" ] ; then
-  git clone https://github.com/lygstate/osm2pgsql.git $OSM2PGSQL_SOURCE_DIR
-fi
+  # Download the planet
+  tsocks wget --quiet --directory-prefix $EBS_MOUNT/data --timestamping http://s3.amazonaws.com/mapzen-tiles-assets/20161110/shapefiles.tar.gz
+  tsocks wget --quiet --directory-prefix $EBS_MOUNT/data --timestamping https://s3.amazonaws.com/mapzen-tiles-assets/wof/dev/wof_neighbourhoods.pgdump
+  tsocks wget --quiet --directory-prefix $EBS_MOUNT/data --timestamping https://s3.amazonaws.com/metro-extracts.mapzen.com/new-york_new-york.osm.pbf
+  wget --quiet --directory-prefix $EBS_MOUNT/data --timestamping http://planet.openstreetmap.org/pbf/planet-latest.osm.pbf
 
-cd $OSM2PGSQL_SOURCE_DIR
-git.exe checkout -f --track -B mz-integration remotes/origin/mz-integration
-mkdir -p build && cd build
-cmake ..
-make && make install
+  # Building osm2pgsql
+  OSM2PGSQL_SOURCE_DIR="${EBS_MOUNT}/osm2pgsql"
+  if [ ! -d "$OSM2PGSQL_SOURCE_DIR" ] ; then
+    git clone https://github.com/lygstate/osm2pgsql.git $OSM2PGSQL_SOURCE_DIR
+  fi
 
-# Import the planet
-SOURCE_DIR="${EBS_MOUNT}/vector-datasource"
-if [ ! -d "$SOURCE_DIR" ] ; then
-  git clone https://github.com/lygstate/vector-datasource.git $SOURCE_DIR
-fi
-ls $EBS_MOUNT/vector-datasource/osm2pgsql.style
-osm2pgsql --create --slim --cache $OSM2PGSQL_CACHE --hstore-all \
-  --host localhost \
-  --number-processes $OSM2PGSQL_PROCS \
-  --style $EBS_MOUNT/vector-datasource/osm2pgsql.style \
-  --flat-nodes /var/data/flatnodes \
-  -d ${PGDATABASE} \
-  $EBS_MOUNT/data/new-york_new-york.osm.pbf
+  cd $OSM2PGSQL_SOURCE_DIR
+  git.exe checkout -f --track -B mz-integration remotes/origin/mz-integration
+  mkdir -p build && cd build
+  cmake ..
+  make && make install
 
-# Download and import supporting data
-cd $SOURCE_DIR
-SOURCE_VENV="${SOURCE_DIR}/venv"
-tsocks virtualenv $SOURCE_VENV
-source "${SOURCE_VENV}/bin/activate"
-tsocks pip -q install -U jinja2 pyaml
-cd data
-python bootstrap.py
-cp $EBS_MOUNT/data/shapefiles.tar.gz $SOURCE_DIR/data/
-make -f Makefile-import-data
-./import-shapefiles.sh | psql -d $PGDATABASE -U $PGUSER -h localhost
-./perform-sql-updates.sh -d $PGDATABASE -U $PGUSER -h localhost
-make -f Makefile-import-data clean
-deactivate
+  # Import the planet
+  SOURCE_DIR="${EBS_MOUNT}/vector-datasource"
+  if [ ! -d "$SOURCE_DIR" ] ; then
+    git clone https://github.com/lygstate/vector-datasource.git $SOURCE_DIR
+  fi
+  ls $EBS_MOUNT/vector-datasource/osm2pgsql.style
+  osm2pgsql --create --slim --cache $OSM2PGSQL_CACHE --hstore-all \
+    --host localhost \
+    --number-processes $OSM2PGSQL_PROCS \
+    --style $EBS_MOUNT/vector-datasource/osm2pgsql.style \
+    --flat-nodes /var/data/flatnodes \
+    -d ${PGDATABASE} \
+    $EBS_MOUNT/data/new-york_new-york.osm.pbf
+
+}
+
+import_shp() {
+  # Download and import supporting data
+  cd $SOURCE_DIR
+  SOURCE_VENV="${SOURCE_DIR}/venv"
+  tsocks virtualenv $SOURCE_VENV
+  source "${SOURCE_VENV}/bin/activate"
+  tsocks pip -q install -U jinja2 pyaml
+  cd data
+  python bootstrap.py
+  cp $EBS_MOUNT/data/shapefiles.tar.gz $SOURCE_DIR/data/
+  make -f Makefile-import-data
+  ./import-shapefiles.sh | psql -d $PGDATABASE -U $PGUSER -h localhost
+  ./perform-sql-updates.sh -d $PGDATABASE -U $PGUSER -h localhost
+  make -f Makefile-import-data clean
+  deactivate
+}
+
+import_osm
+import_shp
 
 # Downloading Who's on First neighbourhoods data
 pg_restore --clean -d $PGDATABASE -U $PGUSER -h localhost -O "${EBS_MOUNT}/data/wof_neighbourhoods.pgdump"
